@@ -1,0 +1,24 @@
+{
+  "name": "学习助手 - 多模块云端同步平台",
+  "version": "1.0.0",
+  "description": "基于Firebase和GitHub Pages的多模块学习平台",
+  "main": "index.html",
+  "scripts": {
+    "start": "python -m http.server 8000",
+    "build": "echo 'No build needed for static site'",
+    "deploy": "git add . && git commit -m 'Update' && git push origin main"
+  },
+  "keywords": [
+    "todolist",
+    "ielts",
+    "learning",
+    "firebase",
+    "github-pages"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/ielts3.git"
+  }
+}

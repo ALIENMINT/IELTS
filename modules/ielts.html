@@ -1,0 +1,324 @@
+<!-- IELTS Analysis Module -->
+<div id="module-ielts" class="hidden">
+  <nav class="navbar">
+    <div class="brand">
+      <i class="fas fa-chart-line"></i> 雅思学习助手
+    </div>
+    <div class="user-info">
+      <span class="sync-indicator" id="sync-indicator-ielts"></span>
+      <span id="user-display-ielts">加载中...</span>
+    </div>
+  </nav>
+
+  <div class="container" style="margin-top: 2rem; margin-bottom: 6rem;">
+    <!-- 概览统计 -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 2rem; margin-bottom: 3rem;">
+      <div class="glass-card p-6 rounded-2xl" style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); padding: 1.5rem; border-radius: 1rem; border-left: 10px solid #4f46e5;">
+        <p style="font-size: 0.75rem; color: #94a3b8; font-weight: 700; text-transform: uppercase; margin-bottom: 0.5rem;">听力预估均分</p>
+        <div style="display: flex; align-items: baseline; gap: 0.5rem;">
+          <h3 id="listeningBand" style="font-size: 3rem; font-weight: 700; color: #1e293b;">--</h3>
+          <span style="color: #4f46e5; font-weight: 700; font-size: 1.125rem;">Band</span>
+        </div>
+      </div>
+
+      <div class="glass-card p-6 rounded-2xl" style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); padding: 1.5rem; border-radius: 1rem; border-left: 10px solid #10b981;">
+        <p style="font-size: 0.75rem; color: #94a3b8; font-weight: 700; text-transform: uppercase; margin-bottom: 0.5rem;">阅读预估均分</p>
+        <div style="display: flex; align-items: baseline; gap: 0.5rem;">
+          <h3 id="readingBand" style="font-size: 3rem; font-weight: 700; color: #1e293b;">--</h3>
+          <span style="color: #10b981; font-weight: 700; font-size: 1.125rem;">Band</span>
+        </div>
+      </div>
+
+      <div class="glass-card p-6 rounded-2xl" style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); padding: 1.5rem; border-radius: 1rem; border-left: 10px solid #f59e0b;">
+        <p style="font-size: 0.75rem; color: #94a3b8; font-weight: 700; text-transform: uppercase; margin-bottom: 0.5rem;">总分参考</p>
+        <div style="display: flex; align-items: center; gap: 1.5rem;">
+          <h3 id="overallBand" style="font-size: 3rem; font-weight: 700; color: #1e293b;">--</h3>
+          <div style="border-left: 2px solid #f1f5f9; padding-left: 1.5rem;">
+            <span style="font-size: 0.75rem; color: #94a3b8; font-weight: 700; text-transform: uppercase; display: block;">总正确题数</span>
+            <span style="font-size: 1.5rem; font-weight: 700; color: #f59e0b;"><span id="overallCorrectCount">0</span><span style="color: #cbd5e1; font-size: 0.875rem; margin-left: 0.25rem;">/ 80</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 日期选择和导出 -->
+    <div class="glass-card p-6 rounded-2xl mb-6" style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); padding: 1.5rem; border-radius: 1rem; margin-bottom: 1.5rem;">
+      <div style="display: flex; flex-wrap: wrap; gap: 1rem; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <label style="font-weight: 700; color: #475569;">选择日期:</label>
+          <input type="date" id="datePicker-ielts" style="padding: 0.5rem 1rem; border: 2px solid #e2e8f0; border-radius: 0.75rem; font-size: 1rem;">
+        </div>
+        <button id="export-excel-btn" class="btn btn-primary" style="padding: 0.75rem 1.5rem; border: none; border-radius: 0.75rem; font-weight: 600; cursor: pointer; background-color: #10b981; color: white;">Excel 导出</button>
+        <button id="export-notes-btn" class="btn btn-primary" style="padding: 0.75rem 1.5rem; border: none; border-radius: 0.75rem; font-weight: 600; cursor: pointer; background-color: #f59e0b; color: white;">笔记导出</button>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div style="display: flex; gap: 1rem; border-bottom: 4px solid #f1f5f9; margin-bottom: 2rem; overflow-x: auto;">
+      <button id="tab-logger" class="nav-item" style="padding: 1.25rem 2.5rem; font-weight: 700; font-size: 1.125rem; color: #4f46e5; cursor: pointer; border-bottom: 3px solid #4f46e5;">学情录入</button>
+      <button id="tab-analytics" class="nav-item" style="padding: 1.25rem 2.5rem; font-weight: 700; font-size: 1.125rem; color: #94a3b8; cursor: pointer; border-bottom: 3px solid transparent;">趋势分析</button>
+    </div>
+
+    <!-- Logger Section -->
+    <div id="section-logger">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 2rem; margin-bottom: 2rem;">
+        <!-- Listening Section -->
+        <div class="glass-card rounded-2xl overflow-hidden" style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 1rem; overflow: hidden;">
+          <div style="background: #4f46e5; padding: 1.5rem; color: white; display: flex; justify-content: space-between; align-items: center;">
+            <h2 style="font-weight: 700; font-size: 1.25rem; text-transform: uppercase; letter-spacing: 0.05em;">Listening</h2>
+            <div id="l-total" style="background: rgba(79, 70, 229, 0.3); padding: 0.5rem 1.25rem; border-radius: 1rem; font-size: 1.875rem; font-weight: 700;">0</div>
+          </div>
+          <div id="listening-parts" style="padding: 2.5rem; display: flex; flex-direction: column; gap: 1.5rem;">
+            <!-- 动态内容 -->
+          </div>
+        </div>
+
+        <!-- Reading Section -->
+        <div class="glass-card rounded-2xl overflow-hidden" style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 1rem; overflow: hidden;">
+          <div style="background: #10b981; padding: 1.5rem; color: white; display: flex; justify-content: space-between; align-items: center;">
+            <h2 style="font-weight: 700; font-size: 1.25rem; text-transform: uppercase; letter-spacing: 0.05em;">Reading</h2>
+            <div>
+              <div id="r-total" style="background: rgba(16, 185, 129, 0.3); padding: 0.5rem 1.25rem; border-radius: 1rem; font-size: 1.875rem; font-weight: 700; display: inline-block;">0</div>
+              <div id="r-time-total" style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; margin-top: 0.5rem; opacity: 0.8; letter-spacing: 0.05em;">0 MINS</div>
+            </div>
+          </div>
+          <div id="reading-passages" style="padding: 2.5rem; display: flex; flex-direction: column; gap: 1.5rem;">
+            <!-- 动态内容 -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Notes Section -->
+      <div class="glass-card rounded-2xl p-6" style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 1rem; padding: 1.5rem;">
+        <h2 style="font-size: 1.5rem; font-weight: 700; color: #1e293b; margin-bottom: 1rem; text-transform: uppercase;">Study Notes</h2>
+        <textarea id="notes-ielts" placeholder="在此记录今天的复盘内容、生词等..." style="width: 100%; height: 14rem; background: #f8fafc; border: 4px solid #f1f5f9; border-radius: 1.5rem; padding: 2rem; font-size: 1rem; resize: vertical;"></textarea>
+      </div>
+    </div>
+
+    <!-- Analytics Section -->
+    <div id="section-analytics" style="display: none;">
+      <div class="glass-card p-6 rounded-2xl" style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 1rem; padding: 1.5rem; margin-bottom: 2rem;">
+        <h2 style="font-size: 1.875rem; font-weight: 700; color: #0f172a; margin-bottom: 1rem;">对题趋势监控</h2>
+        <div style="height: 400px; position: relative;">
+          <canvas id="scoreChart"></canvas>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 2rem;">
+        <div class="glass-card p-6 rounded-2xl" style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 1rem; padding: 1.5rem;">
+          <h2 style="font-size: 1.5rem; font-weight: 700; color: #1e293b; margin-bottom: 2rem; text-transform: uppercase;">阅读用时监控</h2>
+          <div style="height: 300px; position: relative;">
+            <canvas id="timeChart"></canvas>
+          </div>
+        </div>
+
+        <div class="glass-card p-6 rounded-2xl" style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 1rem; padding: 1.5rem;">
+          <h2 style="font-size: 1.5rem; font-weight: 700; color: #1e293b; margin-bottom: 2rem; text-transform: uppercase;">题材弱项云图</h2>
+          <div>
+            <h4 style="font-size: 0.75rem; color: #4f46e5; font-weight: 700; text-transform: uppercase; margin-bottom: 1rem; letter-spacing: 0.1em;">听力错题分布</h4>
+            <div id="l-word-cloud" style="display: flex; flex-wrap: wrap; gap: 1.25rem; min-height: 140px; align-items: center; justify-content: center; padding: 2rem; background: rgba(79, 70, 229, 0.05); border-radius: 2rem;"></div>
+          </div>
+          <div style="margin-top: 2rem;">
+            <h4 style="font-size: 0.75rem; color: #10b981; font-weight: 700; text-transform: uppercase; margin-bottom: 1rem; letter-spacing: 0.1em;">阅读错题分布</h4>
+            <div id="r-word-cloud" style="display: flex; flex-wrap: wrap; gap: 1.25rem; min-height: 140px; align-items: center; justify-content: center; padding: 2rem; background: rgba(16, 185, 129, 0.05); border-radius: 2rem;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+// IELTS Analysis 模块脚本将在主js中初始化
+window.ieltsModule = {
+  currentDate: new Date().toISOString().split('T')[0],
+  allData: {},
+  dailyData: null,
+  scoreChart: null,
+  timeChart: null,
+
+  getDefaultData() {
+    return {
+      listening: Array(4).fill(0).map(() => ({ theme: '', score: 0 })),
+      reading: Array(3).fill(0).map(() => ({ theme: '', score: 0, time: 20 })),
+      notes: "",
+      excluded: false
+    };
+  },
+
+  THEMES: {
+    listening: ["租房/房产咨询", "旅游咨询/预订", "购物/生活投诉", "银行开户/保险", "图书馆/社团招新", "选课咨询/学术讨论", "导师指导/论文修改", "项目研究/实习反馈", "环境科学讲座", "历史与考古讲座", "商业与管理", "心理学/社会研究"],
+    reading: ["自然科学 (动植物、地球科学)", "气候变化与环境", "能源与前沿科技", "地质构造/物理现象", "社会科学 (教育、制度改革)", "心理认知/大脑研究", "城市化/社会变迁", "历史遗迹/考古发现", "语言学与语言演变", "艺术史/人文思想", "名人传记/发明家故事"]
+  },
+
+  init(dbManager) {
+    this.dbManager = dbManager;
+    this.setupEventListeners();
+    this.setupDatePicker();
+    this.loadDailyData(this.currentDate);
+    setInterval(() => this.saveCurrentData(), 30000);
+  },
+
+  setupEventListeners() {
+    document.getElementById('tab-logger').addEventListener('click', () => this.switchTab('logger'));
+    document.getElementById('tab-analytics').addEventListener('click', () => this.switchTab('analytics'));
+    document.getElementById('export-excel-btn').addEventListener('click', () => this.exportToExcel());
+    document.getElementById('export-notes-btn').addEventListener('click', () => this.exportAllNotes());
+  },
+
+  setupDatePicker() {
+    const dp = document.getElementById('datePicker-ielts');
+    dp.value = this.currentDate;
+    dp.addEventListener('change', (e) => {
+      this.saveCurrentData();
+      this.currentDate = e.target.value;
+      this.loadDailyData(this.currentDate);
+    });
+  },
+
+  loadDailyData(date) {
+    this.dailyData = this.allData[date] ? JSON.parse(JSON.stringify(this.allData[date])) : this.getDefaultData();
+    this.renderLogger();
+    this.updateBands();
+  },
+
+  saveCurrentData() {
+    this.syncDataFromDOM();
+    this.allData[this.currentDate] = JSON.parse(JSON.stringify(this.dailyData));
+    localStorage.setItem('ielts_study_tracker_v4_local', JSON.stringify(this.allData));
+    this.updateBands();
+    if (this.scoreChart) this.updateCharts();
+  },
+
+  syncDataFromDOM() {
+    for(let i=0; i<4; i++) {
+      const t = document.getElementById(`l-theme-${i}`), s = document.getElementById(`l-score-${i}`);
+      if(t) this.dailyData.listening[i].theme = t.value;
+      if(s) this.dailyData.listening[i].score = parseInt(s.value) || 0;
+    }
+    for(let i=0; i<3; i++) {
+      const t = document.getElementById(`r-theme-${i}`), s = document.getElementById(`r-score-${i}`), tm = document.getElementById(`r-time-${i}`);
+      if(t) this.dailyData.reading[i].theme = t.value;
+      if(s) this.dailyData.reading[i].score = parseInt(s.value) || 0;
+      if(tm) this.dailyData.reading[i].time = parseInt(tm.value) || 0;
+    }
+    this.dailyData.notes = document.getElementById('notes-ielts').value;
+  },
+
+  renderLogger() {
+    const l = document.getElementById('listening-parts');
+    l.innerHTML = this.dailyData.listening.map((p, i) => `
+      <div style="padding: 1.25rem; background: #f8fafc; border-radius: 1.5rem; border: 4px solid #f1f5f9; display: flex; align-items: center; gap: 1.5rem;">
+        <span style="width: 5rem; font-weight: 700; color: #4f46e5; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em;">Part ${i+1}</span>
+        <select id="l-theme-${i}" style="flex: 1; background: white; border: 4px solid #e2e8f0; border-radius: 1rem; padding: 0.75rem 1rem; font-size: 1rem; font-weight: 700;">
+          <option value="">题材选择...</option>
+          ${this.THEMES.listening.map(t => `<option value="${t}" ${p.theme === t ? 'selected' : ''}>${t}</option>`).join('')}
+        </select>
+        <input type="number" id="l-score-${i}" min="0" max="10" value="${p.score}" oninput="window.ieltsModule.updateTotals()" style="width: 80px; text-align: center; background: white; border: 4px solid #4f46e5; border-radius: 1rem; padding: 0.75rem; font-weight: 700; color: #4f46e5; font-size: 1.5rem;">
+      </div>
+    `).join('');
+
+    const r = document.getElementById('reading-passages');
+    r.innerHTML = this.dailyData.reading.map((p, i) => `
+      <div style="padding: 1.5rem; background: #f8fafc; border-radius: 1.5rem; border: 4px solid #f1f5f9; display: flex; flex-direction: column; gap: 1rem;">
+        <div style="display: flex; align-items: center; gap: 1.5rem;">
+          <span style="width: 6rem; font-weight: 700; color: #10b981; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em;">Passage ${i+1}</span>
+          <select id="r-theme-${i}" style="flex: 1; background: white; border: 4px solid #e2e8f0; border-radius: 1rem; padding: 0.75rem 1rem; font-size: 1rem; font-weight: 700;">
+            <option value="">题材选择...</option>
+            ${this.THEMES.reading.map(t => `<option value="${t}" ${p.theme === t ? 'selected' : ''}>${t}</option>`).join('')}
+          </select>
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 2rem;">
+          <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <span style="font-size: 0.75rem; color: #94a3b8; font-weight: 700; text-transform: uppercase;">Correct</span>
+            <input type="number" id="r-score-${i}" value="${p.score}" oninput="window.ieltsModule.updateTotals()" style="width: 80px; text-align: center; background: white; border: 4px solid #10b981; border-radius: 1rem; padding: 0.5rem; font-weight: 700; color: #10b981; font-size: 1.5rem;">
+          </div>
+          <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <span style="font-size: 0.75rem; color: #94a3b8; font-weight: 700; text-transform: uppercase;">Time</span>
+            <input type="number" id="r-time-${i}" value="${p.time}" oninput="window.ieltsModule.updateTotals()" style="width: 80px; text-align: center; background: white; border: 4px solid #cbd5e1; border-radius: 1rem; padding: 0.5rem; font-weight: 700; color: #475569; font-size: 1.5rem;">
+          </div>
+        </div>
+      </div>
+    `).join('');
+    
+    document.getElementById('notes-ielts').value = this.dailyData.notes;
+    this.updateTotals();
+  },
+
+  updateTotals() {
+    let l = 0, r = 0, rt = 0;
+    for(let i=0; i<4; i++) l += parseInt(document.getElementById(`l-score-${i}`)?.value || 0);
+    for(let i=0; i<3; i++) {
+      r += parseInt(document.getElementById(`r-score-${i}`)?.value || 0);
+      rt += parseInt(document.getElementById(`r-time-${i}`)?.value || 0);
+    }
+    document.getElementById('l-total').innerText = Math.round(l);
+    document.getElementById('r-total').innerText = Math.round(r);
+    document.getElementById('r-time-total').innerText = `${Math.round(rt)} MINS`;
+  },
+
+  updateBands() {
+    const sortedDates = Object.keys(this.allData).sort();
+    const activeEntries = sortedDates.map(d => this.allData[d]).filter(d => !d.excluded);
+    
+    const validL = activeEntries.filter(d => d.listening.some(p => p.score > 0));
+    const validR = activeEntries.filter(d => d.reading.some(p => p.score > 0));
+
+    const avgL = validL.length ? validL.reduce((acc, d) => acc + d.listening.reduce((s, p) => s + p.score, 0), 0) / validL.length : 0;
+    const avgR = validR.length ? validR.reduce((acc, d) => acc + d.reading.reduce((s, p) => s + p.score, 0), 0) / validR.length : 0;
+
+    document.getElementById('listeningBand').innerText = this.getBandScore(avgL).toFixed(1);
+    document.getElementById('readingBand').innerText = this.getBandScore(avgR).toFixed(1);
+    document.getElementById('overallBand').innerText = ((this.getBandScore(avgL) + this.getBandScore(avgR)) / 2).toFixed(1);
+    document.getElementById('overallCorrectCount').innerText = Math.round(avgL + avgR);
+  },
+
+  getBandScore(c) {
+    if (c >= 39) return 9.0; if (c >= 37) return 8.5; if (c >= 35) return 8.0; if (c >= 32) return 7.5;
+    if (c >= 30) return 7.0; if (c >= 26) return 6.5; if (c >= 23) return 6.0; if (c >= 18) return 5.5;
+    if (c >= 15) return 5.0; if (c >= 13) return 4.5; if (c >= 10) return 4.0; return 0;
+  },
+
+  switchTab(t) {
+    document.getElementById('section-logger').style.display = t === 'logger' ? 'block' : 'none';
+    document.getElementById('section-analytics').style.display = t === 'analytics' ? 'block' : 'none';
+    
+    const loggerBtn = document.getElementById('tab-logger');
+    const analyticsBtn = document.getElementById('tab-analytics');
+    
+    if (t === 'logger') {
+      loggerBtn.style.borderBottom = '3px solid #4f46e5';
+      loggerBtn.style.color = '#4f46e5';
+      analyticsBtn.style.borderBottom = '3px solid transparent';
+      analyticsBtn.style.color = '#94a3b8';
+    } else {
+      loggerBtn.style.borderBottom = '3px solid transparent';
+      loggerBtn.style.color = '#94a3b8';
+      analyticsBtn.style.borderBottom = '3px solid #4f46e5';
+      analyticsBtn.style.color = '#4f46e5';
+      setTimeout(() => { this.updateCharts(); }, 50);
+    }
+  },
+
+  updateCharts() {
+    // Chart.js初始化代码可根据需要添加
+  },
+
+  exportToExcel() {
+    alert('Excel导出功能需要XLSX库支持，请在生产环境中集成');
+  },
+
+  exportAllNotes() {
+    const sorted = Object.keys(this.allData).sort();
+    let txt = "===== 雅思备考复盘笔记导出 =====\n\n";
+    sorted.forEach(d => { if(this.allData[d].notes?.trim()) txt += `【${d}】\n${this.allData[d].notes}\n\n------------------\n\n`; });
+    const blob = new Blob([txt], { type: 'text/plain;charset=utf-8' });
+    const a = document.createElement('a'); 
+    a.href = URL.createObjectURL(blob); 
+    a.download = `IELTS_Notes_${this.currentDate}.txt`; 
+    a.click();
+  }
+};
+</script>

@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>雅思学习助手 - 专业增强版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #fcfcfd; font-size: 1.1rem; }
+        .glass-card { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); border: 1px solid rgba(229, 231, 235, 0.5); }
+        .tab-active { border-bottom: 4px solid #4f46e5; color: #4f46e5; }
+        input[type="number"]::-webkit-inner-spin-button { display: none; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .word-cloud-item { transition: all 0.3s ease; cursor: default; }
+        .word-cloud-item:hover { transform: scale(1.1); filter: brightness(1.2); }
+        .legend-disabled { opacity: 0.25; filter: grayscale(1); }
+    </style>
+</head>
+<body class="min-h-screen text-slate-900">
+
+<div id="app" class="max-w-6xl mx-auto px-4 py-6 md:py-10">
+    <!-- Header -->
+    <header class="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-10">
+        <div>
+            <h1 class="text-4xl font-black tracking-tight text-slate-900">雅思学习助手 <span class="text-indigo-600">IELTS</span></h1>
+            <p class="text-slate-500 text-lg mt-1 font-semibold">记录数据，分析弱点，冲刺高分</p>
+        </div>
+        
+        <div class="flex flex-wrap items-center gap-3">
+            <div class="flex gap-2">
+                <button onclick="exportToExcel()" class="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl shadow-lg shadow-emerald-200 text-base font-bold hover:bg-emerald-700 transition-all">
+                    Excel 导出
+                </button>
+                <label class="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl shadow-lg shadow-indigo-200 text-base font-bold hover:bg-indigo-700 transition-all cursor-pointer">
+                    Excel 导入
+                    <input type="file" id="importFile" class="hidden" accept=".xlsx, .xls">
+                </label>
+                <button onclick="exportAllNotes()" class="flex items-center gap-2 px-4 py-2.5 bg-amber-500 text-white rounded-xl shadow-lg shadow-amber-200 text-base font-bold hover:bg-amber-600 transition-all">
+                    笔记 (TXT)
+                </button>
+            </div>
+
+            <div class="flex items-center gap-4 bg-white px-5 py-3 rounded-2xl shadow-sm border border-slate-200">
+                <div class="flex flex-col">
+                    <span class="text-[10px] uppercase font-black text-slate-400 leading-none mb-1">训练日期</span>
+                    <input type="date" id="datePicker" class="text-indigo-600 font-black focus:outline-none cursor-pointer bg-transparent text-xl">
+                </div>
+                <div class="h-10 w-[2px] bg-slate-100"></div>
+                <label class="flex items-center gap-3 cursor-pointer select-none group">
+                    <div class="relative">
+                        <input type="checkbox" id="excludeToggle" class="sr-only peer" onchange="toggleExclusion()">
+                        <div class="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:bg-red-500 transition-all"></div>
+                        <div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-all peer-checked:translate-x-5"></div>
+                    </div>
+                    <span class="text-sm font-black text-slate-500 peer-checked:text-red-600">排除统计</span>
+                </label>
+            </div>
+        </div>
+    </header>
+
+    <!-- Overview Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+        <div class="glass-card p-8 rounded-3xl shadow-sm border-l-[10px] border-l-indigo-500">
+            <p class="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">听力预估均分</p>
+            <div class="flex items-baseline gap-2">
+                <h3 id="listeningBand" class="text-5xl font-black text-slate-800 tracking-tighter">--</h3>
+                <span class="text-indigo-600 font-black text-lg">Band</span>
+            </div>
+        </div>
+        <div class="glass-card p-8 rounded-3xl shadow-sm border-l-[10px] border-l-emerald-500">
+            <p class="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">阅读预估均分</p>
+            <div class="flex items-baseline gap-2">
+                <h3 id="readingBand" class="text-5xl font-black text-slate-800 tracking-tighter">--</h3>
+                <span class="text-emerald-600 font-black text-lg">Band</span>
+            </div>
+        </div>
+        <div class="glass-card p-8 rounded-3xl shadow-sm border-l-[10px] border-l-amber-500">
+            <p class="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">总分参考 (对题数)</p>
+            <div class="flex items-center gap-6">
+                <h3 id="overallBand" class="text-5xl font-black text-slate-800 tracking-tighter">--</h3>
+                <div class="flex flex-col border-l-2 border-slate-100 pl-6">
+                    <span class="text-[10px] font-black text-slate-400 uppercase">总正确题数</span>
+                    <span class="text-2xl font-black text-amber-600"><span id="overallCorrectCount">0</span><span class="text-slate-300 text-sm ml-1">/ 80</span></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="flex gap-4 border-b-4 border-slate-50 mb-10 overflow-x-auto no-scrollbar">
+        <button onclick="switchTab('logger')" id="tab-logger" class="px-10 py-5 font-black text-lg transition-all tab-active whitespace-nowrap">学情录入</button>
+        <button onclick="switchTab('analytics')" id="tab-analytics" class="px-10 py-5 font-black text-lg text-slate-400 hover:text-indigo-600 transition-all whitespace-nowrap">趋势分析</button>
+    </div>
+
+    <!-- Logger -->
+    <div id="section-logger" class="space-y-10 animate-in fade-in duration-500">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
+            <div class="glass-card rounded-[2.5rem] overflow-hidden shadow-xl border-none">
+                <div class="bg-indigo-600 p-6 text-white flex justify-between items-center">
+                    <h2 class="font-black text-xl uppercase tracking-wider">Listening</h2>
+                    <div class="bg-indigo-900/30 px-5 py-1.5 rounded-2xl text-3xl font-black" id="l-total">0</div>
+                </div>
+                <div class="p-10 space-y-6" id="listening-parts"></div>
+            </div>
+
+            <div class="glass-card rounded-[2.5rem] overflow-hidden shadow-xl border-none">
+                <div class="bg-emerald-600 p-6 text-white flex justify-between items-center">
+                    <h2 class="font-black text-xl uppercase tracking-wider">Reading</h2>
+                    <div class="text-right">
+                        <div class="bg-emerald-900/30 px-5 py-1.5 rounded-2xl text-3xl font-black inline-block" id="r-total">0</div>
+                        <div id="r-time-total" class="text-xs font-black uppercase mt-2 opacity-80 tracking-widest">0 MINS</div>
+                    </div>
+                </div>
+                <div class="p-10 space-y-6" id="reading-passages"></div>
+            </div>
+        </div>
+
+        <div class="glass-card rounded-[2.5rem] p-10 shadow-xl border-none">
+            <h2 class="text-2xl font-black text-slate-800 mb-6 uppercase">Study Notes</h2>
+            <textarea id="notes" placeholder="在此记录今天的复盘内容、生词等..." class="w-full h-56 bg-slate-50 border-4 border-slate-100 rounded-[2rem] p-8 text-xl focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-400 focus:outline-none transition-all resize-none shadow-inner"></textarea>
+        </div>
+    </div>
+
+    <!-- Analytics -->
+    <div id="section-analytics" class="hidden animate-in fade-in duration-500 space-y-12">
+        <div class="glass-card p-10 rounded-[2.5rem] shadow-xl border-none">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-8 mb-10">
+                <div>
+                    <h2 class="text-3xl font-black text-slate-900">对题趋势监控</h2>
+                    <p class="text-base text-slate-400 mt-2 font-bold italic">💡 提示：在图表内滚动缩放，拖动横轴平移日期</p>
+                </div>
+                <div class="flex flex-wrap gap-6">
+                    <button class="flex items-center gap-3 transition-all" onclick="toggleDataset(0)">
+                        <span id="leg-l" class="w-5 h-5 bg-indigo-500 rounded-lg"></span>
+                        <span id="text-l" class="text-sm font-black text-indigo-800 uppercase tracking-widest">听力</span>
+                    </button>
+                    <button class="flex items-center gap-3 transition-all" onclick="toggleDataset(1)">
+                        <span id="leg-r" class="w-5 h-5 bg-emerald-500 rounded-lg"></span>
+                        <span id="text-r" class="text-sm font-black text-emerald-800 uppercase tracking-widest">阅读</span>
+                    </button>
+                    <button class="flex items-center gap-3 transition-all" onclick="toggleDataset(2)">
+                        <span id="leg-t" class="w-5 h-5 bg-amber-500 rounded-lg"></span>
+                        <span id="text-t" class="text-sm font-black text-amber-800 uppercase tracking-widest">总分</span>
+                    </button>
+                </div>
+            </div>
+            <div class="h-[500px]">
+                <canvas id="scoreChart"></canvas>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+            <div class="glass-card p-10 rounded-[2.5rem] shadow-xl border-none">
+                <h2 class="text-2xl font-black text-slate-800 mb-8 uppercase tracking-widest">阅读总用时监控 (MIN)</h2>
+                <div class="h-[380px]">
+                    <canvas id="timeChart"></canvas>
+                </div>
+            </div>
+
+            <div class="glass-card p-10 rounded-[2.5rem] shadow-xl border-none">
+                <h2 class="text-2xl font-black text-slate-800 mb-8 uppercase tracking-widest">题材弱项云图</h2>
+                <div class="space-y-10">
+                    <div>
+                        <h4 class="text-xs font-black text-indigo-400 uppercase mb-4 tracking-[0.2em]">Listening Errors</h4>
+                        <div id="l-word-cloud" class="flex flex-wrap gap-5 min-h-[140px] items-center justify-center p-8 bg-indigo-50/30 rounded-[2rem]"></div>
+                    </div>
+                    <div>
+                        <h4 class="text-xs font-black text-emerald-400 uppercase mb-4 tracking-[0.2em]">Reading Errors</h4>
+                        <div id="r-word-cloud" class="flex flex-wrap gap-5 min-h-[140px] items-center justify-center p-8 bg-emerald-50/30 rounded-[2rem]"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const STORAGE_KEY = 'ielts_study_tracker_v4_local';
+    const THEMES = {
+        listening: ["租房/房产咨询", "旅游咨询/预订", "购物/生活投诉", "银行开户/保险", "图书馆/社团招新", "选课咨询/学术讨论", "导师指导/论文修改", "项目研究/实习反馈", "环境科学讲座", "历史与考古讲座", "商业与管理", "心理学/社会研究"],
+        reading: ["自然科学 (动植物、地球科学)", "气候变化与环境", "能源与前沿科技", "地质构造/物理现象", "社会科学 (教育、制度改革)", "心理认知/大脑研究", "城市化/社会变迁", "历史遗迹/考古发现", "语言学与语言演变", "艺术史/人文思想", "名人传记/发明家故事"]
+    };
+
+    let currentDate = new Date().toLocaleDateString('sv-SE');
+    let allData = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+    let dailyData = getDefaultData();
+    let scoreChart, timeChart;
+
+    function getDefaultData() {
+        return {
+            listening: Array(4).fill(0).map(() => ({ theme: '', score: 0 })),
+            reading: Array(3).fill(0).map(() => ({ theme: '', score: 0, time: 20 })),
+            notes: "",
+            excluded: false
+        };
+    }
+
+    window.onload = () => {
+        setupDatePicker();
+        setupImport();
+        loadDailyData(currentDate);
+        setInterval(saveCurrentData, 30000);
+    };
+
+    function setupDatePicker() {
+        const dp = document.getElementById('datePicker');
+        dp.value = currentDate;
+        dp.addEventListener('change', (e) => {
+            saveCurrentData();
+            currentDate = e.target.value;
+            loadDailyData(currentDate);
+        });
+    }
+
+    function loadDailyData(date) {
+        dailyData = allData[date] ? JSON.parse(JSON.stringify(allData[date])) : getDefaultData();
+        if (dailyData.excluded === undefined) dailyData.excluded = false;
+        document.getElementById('excludeToggle').checked = dailyData.excluded;
+        renderLogger();
+        updateBands();
+    }
+
+    function toggleExclusion() {
+        dailyData.excluded = document.getElementById('excludeToggle').checked;
+        saveCurrentData();
+    }
+
+    function saveCurrentData() {
+        syncDataFromDOM();
+        allData[currentDate] = JSON.parse(JSON.stringify(dailyData));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(allData));
+        updateBands();
+        if (scoreChart) updateCharts();
+    }
+
+    function syncDataFromDOM() {
+        for(let i=0; i<4; i++) {
+            const t = document.getElementById(`l-theme-${i}`), s = document.getElementById(`l-score-${i}`);
+            if(t) dailyData.listening[i].theme = t.value;
+            if(s) dailyData.listening[i].score = parseInt(s.value) || 0;
+        }
+        for(let i=0; i<3; i++) {
+            const t = document.getElementById(`r-theme-${i}`), s = document.getElementById(`r-score-${i}`), tm = document.getElementById(`r-time-${i}`);
+            if(t) dailyData.reading[i].theme = t.value;
+            if(s) dailyData.reading[i].score = parseInt(s.value) || 0;
+            if(tm) dailyData.reading[i].time = parseInt(tm.value) || 0;
+        }
+        dailyData.notes = document.getElementById('notes').value;
+    }
+
+    function renderLogger() {
+        const l = document.getElementById('listening-parts');
+        l.innerHTML = dailyData.listening.map((p, i) => `
+            <div class="p-5 bg-slate-50 rounded-[1.5rem] border-4 border-slate-100 flex items-center gap-6">
+                <span class="w-20 font-black text-indigo-700 text-sm uppercase tracking-widest">Part ${i+1}</span>
+                <select id="l-theme-${i}" class="flex-1 bg-white border-4 border-slate-200 rounded-2xl px-4 py-3 text-base font-bold focus:ring-8 focus:ring-indigo-500/5 outline-none">
+                    <option value="">题材选择...</option>
+                    ${THEMES.listening.map(t => `<option value="${t}" ${p.theme === t ? 'selected' : ''}>${t}</option>`).join('')}
+                </select>
+                <input type="number" id="l-score-${i}" min="0" max="10" value="${p.score}" oninput="updateTotals()"
+                       class="w-20 text-center bg-white border-4 border-indigo-200 rounded-2xl py-3 font-black text-indigo-600 focus:ring-8 focus:ring-indigo-500/5 text-2xl">
+            </div>
+        `).join('');
+
+        const r = document.getElementById('reading-passages');
+        r.innerHTML = dailyData.reading.map((p, i) => `
+            <div class="p-6 bg-slate-50 rounded-[1.5rem] border-4 border-slate-100 space-y-4">
+                <div class="flex items-center gap-6">
+                    <span class="w-24 font-black text-emerald-700 text-sm uppercase tracking-widest">Passage ${i+1}</span>
+                    <select id="r-theme-${i}" class="flex-1 bg-white border-4 border-slate-200 rounded-2xl px-4 py-3 text-base font-bold focus:ring-8 focus:ring-emerald-500/5 outline-none">
+                        <option value="">题材选择...</option>
+                        ${THEMES.reading.map(t => `<option value="${t}" ${p.theme === t ? 'selected' : ''}>${t}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="flex justify-end gap-8">
+                    <div class="flex items-center gap-3">
+                        <span class="text-[11px] text-slate-400 font-black uppercase">Correct</span>
+                        <input type="number" id="r-score-${i}" value="${p.score}" oninput="updateTotals()" class="w-20 text-center bg-white border-4 border-emerald-200 rounded-2xl py-2 font-black text-emerald-600 text-2xl">
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-[11px] text-slate-400 font-black uppercase">Time</span>
+                        <input type="number" id="r-time-${i}" value="${p.time}" oninput="updateTotals()" class="w-20 text-center bg-white border-4 border-slate-300 rounded-2xl py-2 font-black text-slate-600 text-2xl">
+                    </div>
+                </div>
+            </div>
+        `).join('');
+        document.getElementById('notes').value = dailyData.notes;
+        updateTotals();
+    }
+
+    window.updateTotals = () => {
+        let l = 0, r = 0, rt = 0;
+        for(let i=0; i<4; i++) l += parseInt(document.getElementById(`l-score-${i}`)?.value || 0);
+        for(let i=0; i<3; i++) {
+            r += parseInt(document.getElementById(`r-score-${i}`)?.value || 0);
+            rt += parseInt(document.getElementById(`r-time-${i}`)?.value || 0);
+        }
+        document.getElementById('l-total').innerText = Math.round(l);
+        document.getElementById('r-total').innerText = Math.round(r);
+        document.getElementById('r-time-total').innerText = `${Math.round(rt)} MINS`;
+    };
+
+    function updateBands() {
+        const sortedDates = Object.keys(allData).sort();
+        const activeEntries = sortedDates.map(d => allData[d]).filter(d => !d.excluded);
+        
+        const validL = activeEntries.filter(d => d.listening.some(p => p.score > 0));
+        const validR = activeEntries.filter(d => d.reading.some(p => p.score > 0));
+
+        const avgL = validL.length ? validL.reduce((acc, d) => acc + d.listening.reduce((s, p) => s + p.score, 0), 0) / validL.length : 0;
+        const avgR = validR.length ? validR.reduce((acc, d) => acc + d.reading.reduce((s, p) => s + p.score, 0), 0) / validR.length : 0;
+
+        document.getElementById('listeningBand').innerText = getBandScore(avgL).toFixed(1);
+        document.getElementById('readingBand').innerText = getBandScore(avgR).toFixed(1);
+        document.getElementById('overallBand').innerText = ((getBandScore(avgL) + getBandScore(avgR)) / 2).toFixed(1);
+        document.getElementById('overallCorrectCount').innerText = Math.round(avgL + avgR);
+    }
+
+    function getBandScore(c) {
+        if (c >= 39) return 9.0; if (c >= 37) return 8.5; if (c >= 35) return 8.0; if (c >= 32) return 7.5;
+        if (c >= 30) return 7.0; if (c >= 26) return 6.5; if (c >= 23) return 6.0; if (c >= 18) return 5.5;
+        if (c >= 15) return 5.0; if (c >= 13) return 4.5; if (c >= 10) return 4.0; return 0;
+    }
+
+    window.switchTab = (t) => {
+        ['logger', 'analytics'].forEach(s => document.getElementById(`section-${s}`).classList.toggle('hidden', s !== t));
+        ['logger', 'analytics'].forEach(s => {
+            const el = document.getElementById(`tab-${s}`);
+            el.classList.toggle('tab-active', s === t);
+            el.classList.toggle('text-slate-400', s !== t);
+        });
+        if (t === 'analytics') setTimeout(() => { updateCharts(); renderWordClouds(); }, 50);
+    };
+
+    function updateCharts() {
+        const sortedDates = Object.keys(allData).sort();
+        const chartDates = sortedDates.filter(d => !allData[d].excluded);
+        
+        const labels = chartDates.map(d => d.split('-').slice(1).join('/'));
+        const lS = chartDates.map(d => allData[d].listening.reduce((s, p) => s + p.score, 0));
+        const rS = chartDates.map(d => allData[d].reading.reduce((s, p) => s + p.score, 0));
+        const tS = lS.map((l, i) => l + rS[i]);
+        const rT = chartDates.map(d => allData[d].reading.reduce((s, p) => s + p.time, 0));
+
+        const baseCfg = { 
+            responsive: true, 
+            maintainAspectRatio: false,
+            // 解决问题 2: 设置全局交互模式为 index 且不限制交叉点
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            plugins: { 
+                legend: { display: false },
+                // 解决问题 2: Tooltip 设置
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                zoom: { 
+                    pan: { enabled: true, mode: 'x' }, 
+                    zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' } 
+                } 
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    // 解决问题 1: 强制显示所有标签，并设置旋转角度
+                    ticks: {
+                        autoSkip: false,
+                        maxRotation: 45,
+                        minRotation: 45
+                    }
+                }
+            }
+        };
+
+        if (!scoreChart) {
+            scoreChart = new Chart(document.getElementById('scoreChart').getContext('2d'), {
+                type: 'line',
+                data: { labels, datasets: [
+                    { label: '听力', data: lS, borderColor: '#4f46e5', tension: 0.4, borderWidth: 4, pointRadius: 5 },
+                    { label: '阅读', data: rS, borderColor: '#10b981', tension: 0.4, borderWidth: 4, pointRadius: 5 },
+                    { label: '总分', data: tS, borderColor: '#f59e0b', tension: 0.4, borderWidth: 5, pointRadius: 6 }
+                ]},
+                options: { 
+                    ...baseCfg, 
+                    scales: { 
+                        ...baseCfg.scales,
+                        y: { min: 0, max: 80, ticks: { stepSize: 10, precision: 0 } } 
+                    } 
+                }
+            });
+            timeChart = new Chart(document.getElementById('timeChart').getContext('2d'), {
+                type: 'line',
+                data: { labels, datasets: [{ label: '用时', data: rT, borderColor: '#6366f1', backgroundColor: 'rgba(99, 102, 241, 0.1)', fill: true, tension: 0.3, borderWidth: 4 }] },
+                options: { 
+                    ...baseCfg, 
+                    scales: { 
+                        ...baseCfg.scales,
+                        y: { ticks: { stepSize: 10, precision: 0 } } 
+                    } 
+                }
+            });
+        } else {
+            scoreChart.data.labels = labels; 
+            scoreChart.data.datasets[0].data = lS; 
+            scoreChart.data.datasets[1].data = rS; 
+            scoreChart.data.datasets[2].data = tS; 
+            scoreChart.update();
+            timeChart.data.labels = labels; 
+            timeChart.data.datasets[0].data = rT; 
+            timeChart.update();
+        }
+    }
+
+    window.toggleDataset = (i) => {
+        const meta = scoreChart.getDatasetMeta(i);
+        meta.hidden = meta.hidden === null ? !scoreChart.data.datasets[i].hidden : null;
+        const ids = ['l', 'r', 't'];
+        document.getElementById(`leg-${ids[i]}`).classList.toggle('legend-disabled', meta.hidden);
+        document.getElementById(`text-${ids[i]}`).classList.toggle('legend-disabled', meta.hidden);
+        scoreChart.update();
+    };
+
+    function renderWordClouds() {
+        const lE = {}, rE = {};
+        Object.values(allData).filter(d => !d.excluded).forEach(d => {
+            d.listening.forEach(p => { if(p.theme) lE[p.theme] = (lE[p.theme] || 0) + (10 - p.score); });
+            d.reading.forEach(p => { if(p.theme) rE[p.theme] = (rE[p.theme] || 0) + (13 - p.score); });
+        });
+        ['l-word-cloud', 'r-word-cloud'].forEach(id => {
+            const data = id.startsWith('l') ? lE : rE, container = document.getElementById(id), entries = Object.entries(data).sort((a,b) => b[1]-a[1]);
+            if(!entries.length) return container.innerHTML = '<span class="text-slate-300 italic text-base font-bold">暂无错题统计</span>';
+            const max = entries[0][1];
+            container.innerHTML = entries.map(([t, e]) => `<span class="word-cloud-item font-black ${id.startsWith('l')?'text-indigo-600':'text-emerald-600'}" style="font-size: ${Math.max(1.1, (e/max)*2 + 0.6)}rem; opacity: ${Math.max(0.3, e/max)}">${t}</span>`).join('');
+        });
+    }
+
+    // --- DATA MANAGEMENT ---
+    window.exportToExcel = () => {
+        const sorted = Object.keys(allData).sort();
+        if (!sorted.length) return alert("暂无数据可导出");
+        const rows = sorted.map(date => {
+            const d = allData[date];
+            const data = { "日期": date, "排除统计": d.excluded ? '是' : '否' };
+            d.listening.forEach((p, i) => { data[`听力 P${i+1} 得分`] = p.score; data[`听力 P${i+1} 题材`] = p.theme; });
+            d.reading.forEach((p, i) => { data[`阅读 P${i+1} 得分`] = p.score; data[`阅读 P${i+1} 用时`] = p.time; data[`阅读 P${i+1} 题材`] = p.theme; });
+            data["笔记"] = d.notes;
+            return data;
+        });
+        const ws = XLSX.utils.json_to_sheet(rows), wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "雅思全量学习报告");
+        XLSX.writeFile(wb, `IELTS_Full_Report_${currentDate}.xlsx`);
+    };
+
+    function setupImport() {
+        const importInp = document.getElementById('importFile');
+        importInp.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (evt) => {
+                try {
+                    const dataArr = new Uint8Array(evt.target.result);
+                    const workbook = XLSX.read(dataArr, { type: 'array' });
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+
+                    const newAllData = {};
+                    jsonData.forEach(row => {
+                        const date = row["日期"];
+                        if (!date) return;
+                        newAllData[date] = {
+                            excluded: row["排除统计"] === '是',
+                            listening: [
+                                { score: row["听力 P1 得分"] || 0, theme: row["听力 P1 题材"] || "" },
+                                { score: row["听力 P2 得分"] || 0, theme: row["听力 P2 题材"] || "" },
+                                { score: row["听力 P3 得分"] || 0, theme: row["听力 P3 题材"] || "" },
+                                { score: row["听力 P4 得分"] || 0, theme: row["听力 P4 题材"] || "" }
+                            ],
+                            reading: [
+                                { score: row["阅读 P1 得分"] || 0, time: row["阅读 P1 用时"] || 20, theme: row["阅读 P1 题材"] || "" },
+                                { score: row["阅读 P2 得分"] || 0, time: row["阅读 P2 用时"] || 20, theme: row["阅读 P2 题材"] || "" },
+                                { score: row["阅读 P3 得分"] || 0, time: row["阅读 P3 用时"] || 20, theme: row["阅读 P3 题材"] || "" }
+                            ],
+                            notes: row["笔记"] || ""
+                        };
+                    });
+
+                    if (Object.keys(newAllData).length > 0) {
+                        if (confirm(`已成功解析 ${Object.keys(newAllData).length} 条记录，确定要覆盖当前数据吗？`)) {
+                            allData = newAllData;
+                            localStorage.setItem(STORAGE_KEY, JSON.stringify(allData));
+                            loadDailyData(currentDate);
+                            alert("数据导入成功！");
+                        }
+                    } else {
+                        alert("未能解析出有效数据，请确保使用本系统导出的 Excel 格式。");
+                    }
+                } catch (err) {
+                    console.error(err);
+                    alert("文件读取失败，请检查文件格式是否正确。");
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        });
+    }
+
+    window.exportAllNotes = () => {
+        const sorted = Object.keys(allData).sort();
+        let txt = "===== 雅思备考复盘笔记导出 =====\n\n";
+        sorted.forEach(d => { if(allData[d].notes?.trim()) txt += `【${d}】${allData[d].excluded?'(已排除统计)':''}\n${allData[d].notes}\n\n------------------\n\n`; });
+        const blob = new Blob([txt], { type: 'text/plain;charset=utf-8' });
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `IELTS_Notes_${currentDate}.txt`; a.click();
+    };
+</script>
+</body>
+</html>

@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学习助手 - 多模块云端同步平台</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <!-- 登录界面 -->
+    <div id="login-screen" class="login-container">
+        <div class="login-card">
+            <div class="logo">
+                <i class="fas fa-cloud-sun"></i>
+            </div>
+            <h2>学习助手</h2>
+            <p>多模块学习平台 · 云端同步</p>
+            <button id="login-btn" class="login-btn">
+                <img src="https://www.google.com/favicon.ico" alt="Google">
+                使用 Google 登录
+            </button>
+            <p style="font-size: 0.75rem; color: #94a3b8; margin-top: 1rem;">登录后可使用所有模块功能</p>
+        </div>
+    </div>
+
+    <!-- 应用界面 -->
+    <div id="app-screen" class="hidden">
+        <nav class="navbar">
+            <div class="brand">
+                <i class="fas fa-graduation-cap"></i> 学习助手
+            </div>
+            <div class="user-info">
+                <span class="sync-indicator" id="sync-dot"></span>
+                <span id="user-display">加载中...</span>
+                <button id="logout-btn" class="btn btn-secondary" style="margin-left: 1rem;">退出登录</button>
+            </div>
+        </nav>
+
+        <!-- 模块导航 -->
+        <div class="module-nav">
+            <button class="nav-item active" data-module="todolist">
+                <i class="fas fa-check-circle" style="margin-right: 0.5rem;"></i> 清单
+            </button>
+            <button class="nav-item" data-module="ielts">
+                <i class="fas fa-chart-line" style="margin-right: 0.5rem;"></i> IELTS
+            </button>
+        </div>
+
+        <!-- 模块容器 -->
+        <div id="modules-container">
+            <!-- 动态加载的模块 -->
+        </div>
+    </div>
+
+    <!-- 加载动画 -->
+    <div id="loading-modal" class="modal">
+        <div class="modal-content" style="max-width: 300px; text-align: center;">
+            <div style="font-size: 2rem; margin-bottom: 1rem;">
+                <i class="fas fa-spinner fa-spin"></i>
+            </div>
+            <p>加载中...</p>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import firebaseConfig from './js/firebase-config.js';
+        import { AuthManager } from './js/auth-manager.js';
+        import { DBManager } from './js/db-manager.js';
+
+        // 初始化Firebase
+        const app = initializeApp(firebaseConfig);
+        let authManager = new AuthManager(app);
+        let dbManager = null;
+        let currentUser = null;
+
+        // DOM元素
+        const loginScreen = document.getElementById('login-screen');
+        const appScreen = document.getElementById('app-screen');
+        const loginBtn = document.getElementById('login-btn');
+        const logoutBtn = document.getElementById('logout-btn');
+        const userDisplay = document.getElementById('user-display');
+        const modulesContainer = document.getElementById('modules-container');
+        const syncDot = document.getElementById('sync-dot');
+        const moduleNavButtons = document.querySelectorAll('.module-nav .nav-item');
+        const loadingModal = document.getElementById('loading-modal');
+
+        // 登录按钮事件
+        loginBtn.addEventListener('click', async () => {
+            try {
+                showLoading(true);
+                const user = await authManager.login();
+                handleUserLogin(user);
+            } catch (error) {
+                console.error('登录失败:', error);
+                alert('登录失败: ' + error.message);
+            } finally {
+                showLoading(false);
+            }
+        });
+
+        // 登出按钮事件
+        logoutBtn.addEventListener('click', async () => {
+            try {
+                await authManager.logout();
+                handleUserLogout();
+            } catch (error) {
+                alert('登出失败: ' + error.message);
+            }
+        });
+
+        // 监听认证状态
+        authManager.onAuthStateChanged((user) => {
+            if (user) {
+                currentUser = user;
+                handleUserLogin(user);
+            } else {
+                handleUserLogout();
+            }
+        });
+
+        // 处理用户登录
+        function handleUserLogin(user) {
+            // ℹ️ 多项目支持：改变此处的项目名称以使用同一Firebase存储不同项目数据
+            const projectName = 'ielts3'; // 改为你的项目名称（如：'learning-app'、'study-helper'）
+            dbManager = new DBManager(app, user.uid, projectName);
+            userDisplay.innerText = `账号: ${user.email}`;
+            loginScreen.classList.add('hidden');
+            appScreen.classList.remove('hidden');
+            loadModules();
+            syncDot.classList.remove('hidden');
+        }
+
+        // 处理用户登出
+        function handleUserLogout() {
+            loginScreen.classList.remove('hidden');
+            appScreen.classList.add('hidden');
+            modulesContainer.innerHTML = '';
+            dbManager = null;
+            currentUser = null;
+        }
+
+        // 加载模块
+        async function loadModules() {
+            try {
+                showLoading(true);
+                
+                // 加载模块HTML
+                const [todolistRes, ieltsRes] = await Promise.all([
+                    fetch('./modules/todolist.html'),
+                    fetch('./modules/ielts.html')
+                ]);
+
+                const todolistHtml = await todolistRes.text();
+                const ieltsHtml = await ieltsRes.text();
+
+                modulesContainer.innerHTML = todolistHtml + ieltsHtml;
+
+                // 初始化模块
+                if (window.todolistModule && dbManager) {
+                    window.todolistModule.init(dbManager);
+                }
+                if (window.ieltsModule && dbManager) {
+                    window.ieltsModule.init(dbManager);
+                }
+
+                // 设置模块导航
+                setupModuleNavigation();
+                
+                // 初始显示第一个模块
+                showModule('todolist');
+            } catch (error) {
+                console.error('模块加载失败:', error);
+                alert('模块加载失败');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // 设置模块导航
+        function setupModuleNavigation() {
+            moduleNavButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const module = btn.getAttribute('data-module');
+                    showModule(module);
+                    
+                    // 更新活跃按钮
+                    moduleNavButtons.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                });
+            });
+        }
+
+        // 显示指定模块
+        function showModule(moduleName) {
+            const todolistModule = document.getElementById('module-todolist');
+            const ieltsModule = document.getElementById('module-ielts');
+
+            if (moduleName === 'todolist') {
+                todolistModule?.classList.remove('hidden');
+                ieltsModule?.classList.add('hidden');
+                // 更新用户显示
+                const userDisplayTodo = document.getElementById('user-display-todo');
+                if (userDisplayTodo) userDisplayTodo.innerText = `账号: ${currentUser?.email || ''}`;
+            } else if (moduleName === 'ielts') {
+                todolistModule?.classList.add('hidden');
+                ieltsModule?.classList.remove('hidden');
+                // 更新用户显示
+                const userDisplayIelts = document.getElementById('user-display-ielts');
+                if (userDisplayIelts) userDisplayIelts.innerText = `账号: ${currentUser?.email || ''}`;
+            }
+        }
+
+        // 显示/隐藏加载动画
+        function showLoading(show) {
+            loadingModal.classList.toggle('show', show);
+        }
+
+        // 同步指示器动画
+        function updateSyncStatus() {
+            if (currentUser) {
+                syncDot.style.backgroundColor = '#10b981';
+            } else {
+                syncDot.style.backgroundColor = '#ef4444';
+            }
+        }
+
+        // 监听在线状态
+        window.addEventListener('online', updateSyncStatus);
+        window.addEventListener('offline', updateSyncStatus);
+
+        // 初始化同步状态
+        updateSyncStatus();
+
+        // 全局方法导出
+        window.showModule = showModule;
+    </script>
+</body>
+</html>
